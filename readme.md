@@ -21,6 +21,8 @@ Ultimately, the primary task of the model will be to determine how (and how much
 * Sophia Bracken - *Problem/Domain Lead*
 
 **Data Sources**
-* Commercial Data Energy Consumption Survey: *https://catalog.data.gov/dataset/commercial-buildings-energy-consumption-survey?from_hint=eyJxIjoiZW5lcmd5IGNvbnN1bXB0aW9uIGluIGJ1aWxkaW5ncyIsInNvcnQiOiJwb3B1bGFyaXR5In0%3D*
+* **Primary**: Consumption and Efficiency Data and Statistics: *https://catalog.data.gov/dataset/consumption-efficiency-data-and-statistics?from_hint=eyJxIjoiZW5lcmd5IGNvbnN1bXB0aW9uIGluIGJ1aWxkaW5ncyIsInNvcnQiOiJwb3B1bGFyaXR5In0%3D*
 
-* Consumption and Efficiency Data and Statistics: *https://catalog.data.gov/dataset/consumption-efficiency-data-and-statistics?from_hint=eyJxIjoiZW5lcmd5IGNvbnN1bXB0aW9uIGluIGJ1aWxkaW5ncyIsInNvcnQiOiJwb3B1bGFyaXR5In0%3D*
+* **Secondary**: Energy Efficiency: *https://archive.ics.uci.edu/dataset/242/energy+efficiency*
+
+* **Tertiary**: Commercial Data Energy Consumption Survey: *https://catalog.data.gov/dataset/commercial-buildings-energy-consumption-survey?from_hint=eyJxIjoiZW5lcmd5IGNvbnN1bXB0aW9uIGluIGJ1aWxkaW5ncyIsInNvcnQiOiJwb3B1bGFyaXR5In0%3D*
