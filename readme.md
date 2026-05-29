@@ -12,7 +12,7 @@ Our goal with this project is to predict the energy consumption of residential b
 * glazing area
 * glazing area orientation
 
-The goal is to minimize energy consumption for architects, engineers, and designers who want to create new and energy-efficient building designs. Ultimately, the primary task of the model will be to determine how (and how much) the different design characteristics affect the energy consumption of each building.
+Ultimately, the primary task of the model will be to determine how (and how much) the different design characteristics affect the energy consumption of each building, with the goal of minimizing energy consumption for architects, engineers, and designers who want to create new and energy-efficient building designs.
 
 **Team Members**
 * Michael Doyle - *Visualization and Modeling Lead*
