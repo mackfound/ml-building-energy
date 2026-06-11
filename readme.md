@@ -2,17 +2,15 @@
 
 This repository is the codebase for Group 09 in the University of Notre Dame's AME34351 Course: Machine Learning for Engineers. 
 
-Our goal with this project is to predict the energy consumption of residential buildings using (approximately) eight architectural/geometric inputs:
-* compactness
-* surface area
-* wall area
-* roof area
-* overall height
-* orientation
-* glazing area
-* glazing area orientation
+Our goal with this project is to predict the heating/cooling load and associated energy expenditure costs of residential buildings using numerous architectural/geometric/innate inputs including:
+* total surface area
+* construction period
+* heating/cooling setpoint
+* fuel usage
+* foundation type
+* building height
 
-Ultimately, the primary task of the model will be to determine how (and how much) the different design characteristics affect the energy consumption of each building, with the goal of minimizing energy consumption for architects, engineers, and designers who want to create new and energy-efficient building designs.
+Ultimately, the primary task of the model will be to determine how (and how much) the different design characteristics affect the heating and cooling load of a building, with the goal of minimizing energy consumption for architects, engineers, and designers who want to create new and energy-efficient building designs.
 
 **Team Members**
 * Michael Doyle - *Visualization and Modeling Lead*
@@ -21,8 +19,6 @@ Ultimately, the primary task of the model will be to determine how (and how much
 * Sophia Bracken - *Problem/Domain Lead*
 
 **Data Sources**
-* **Primary**: Consumption and Efficiency Data and Statistics: *https://catalog.data.gov/dataset/consumption-efficiency-data-and-statistics?from_hint=eyJxIjoiZW5lcmd5IGNvbnN1bXB0aW9uIGluIGJ1aWxkaW5ncyIsInNvcnQiOiJwb3B1bGFyaXR5In0%3D*
+* **Primary**: NREL ResStock Dataset Release 2024.2: *https://resstock.nlr.gov/datasets*
 
 * **Secondary**: Energy Efficiency: *https://archive.ics.uci.edu/dataset/242/energy+efficiency*
-
-* **Tertiary**: Commercial Data Energy Consumption Survey: *https://catalog.data.gov/dataset/commercial-buildings-energy-consumption-survey?from_hint=eyJxIjoiZW5lcmd5IGNvbnN1bXB0aW9uIGluIGJ1aWxkaW5ncyIsInNvcnQiOiJwb3B1bGFyaXR5In0%3D*
