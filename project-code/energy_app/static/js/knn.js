@@ -1,0 +1,262 @@
+/* ── State ─────────────────────────────────────────────────────────────────── */
+let pollTimer = null;
+let appReady = false;
+
+/* ── Polling ───────────────────────────────────────────────────────────────── */
+function startPolling() {
+  clearInterval(pollTimer);
+  pollTimer = setInterval(checkStatus, 3000);
+  checkStatus();
+}
+
+async function checkStatus() {
+  try {
+    const res = await fetch('/api/status');
+    const data = await res.json();
+    if (data.ready) {
+      clearInterval(pollTimer);
+      appReady = true;
+      hideOverlay('loading-overlay');
+      updateBadge('ready', `Ready — ${data.state}`);
+      await loadChoices();
+      await loadScatterPlots();
+    } else if (data.error) {
+      clearInterval(pollTimer);
+      showError(data.error);
+      updateBadge('error', 'Error');
+    } else {
+      updateBadge('loading', 'Loading data…');
+    }
+  } catch {
+    updateBadge('error', 'Server unreachable');
+  }
+}
+
+/* ── Dropdown choices ──────────────────────────────────────────────────────── */
+async function loadChoices() {
+  try {
+    const res = await fetch('/api/choices');
+    if (!res.ok) return;
+    const choices = await res.json();
+    populateSelect('sel-fuel',       choices.fuel       || []);
+    populateSelect('sel-foundation', choices.foundation || []);
+  } catch (e) {
+    console.error('Failed to load choices', e);
+  }
+}
+
+function populateSelect(id, options) {
+  const sel = document.getElementById(id);
+  sel.innerHTML = options.map(v => `<option value="${esc(v)}">${esc(v)}</option>`).join('');
+}
+
+/* ── State change ──────────────────────────────────────────────────────────── */
+document.getElementById('sel-state').addEventListener('change', async function () {
+  if (!appReady) return;
+  const state = this.value;
+  appReady = false;
+  updateBadge('loading', `Loading ${state}…`);
+  showOverlay('loading-overlay');
+  document.getElementById('loading-msg').textContent =
+    `Fetching ResStock data for ${state} and retraining models… (~60–120 s)`;
+  await fetch('/api/load', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ state }),
+  });
+  startPolling();
+});
+
+/* ── Prediction ────────────────────────────────────────────────────────────── */
+async function runPrediction() {
+  if (!appReady) return;
+  const btn = document.getElementById('btn-predict');
+  btn.disabled = true;
+  btn.textContent = 'Predicting…';
+
+  try {
+    const payload = {
+      state:      document.getElementById('sel-state').value,
+      fuel:       document.getElementById('sel-fuel').value,
+      foundation: document.getElementById('sel-foundation').value,
+      floor_area: document.getElementById('sl-area').value,
+      setpoint:   document.getElementById('sl-setpoint').value,
+      stories:    document.querySelector('input[name="stories"]:checked').value,
+    };
+
+    const res = await fetch('/api/predict_knn', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+
+    if (!res.ok) {
+      const err = await res.json();
+      alert('Prediction failed: ' + (err.error || res.statusText));
+      return;
+    }
+
+    const d = await res.json();
+    showResults(d);
+  } catch (e) {
+    alert('Request failed: ' + e.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Run KNN Prediction';
+  }
+}
+
+/* ── Render results ────────────────────────────────────────────────────────── */
+function showResults(d) {
+  document.getElementById('results-placeholder').classList.add('hidden');
+  document.getElementById('results-content').classList.remove('hidden');
+
+  document.getElementById('res-heat').textContent  = fmt(d.knn.heating);
+  document.getElementById('res-cool').textContent  = fmt(d.knn.cooling);
+  document.getElementById('res-total').textContent = fmt(d.knn.total);
+  document.getElementById('res-cost').textContent  = fmtMoney(d.knn.cost);
+}
+
+/* ── Overlay / badge helpers ───────────────────────────────────────────────── */
+function showOverlay(id) { document.getElementById(id).classList.remove('hidden'); }
+function hideOverlay(id) { document.getElementById(id).classList.add('hidden'); }
+function showError(msg) {
+  document.getElementById('error-msg').textContent = msg;
+  hideOverlay('loading-overlay');
+  showOverlay('error-overlay');
+}
+async function retryLoad() {
+  hideOverlay('error-overlay');
+  showOverlay('loading-overlay');
+  const state = document.getElementById('sel-state').value;
+  await fetch('/api/load', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ state }),
+  });
+  startPolling();
+}
+function updateBadge(type, text) {
+  document.getElementById('status-badge').className = `badge badge-${type}`;
+  document.getElementById('status-text').textContent = text;
+}
+
+/* ── Utilities ─────────────────────────────────────────────────────────────── */
+function fmt(n) { return Number(n).toLocaleString(); }
+function fmtMoney(n) {
+  return Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+/* ── Scatter plots ─────────────────────────────────────────────────────────── */
+let scatterHeat = null;
+let scatterCool = null;
+
+async function loadScatterPlots() {
+  try {
+    const res = await fetch('/api/knn_predictions');
+    if (!res.ok) return;
+    const data = await res.json();
+    renderScatter('scatter-heat', data.heating, 'KNN Heating Load', '#0ea5e9');
+    renderScatter('scatter-cool', data.cooling, 'KNN Cooling Load', '#38bdf8');
+  } catch (e) {
+    console.error('Failed to load scatter data', e);
+  }
+}
+
+function renderScatter(canvasId, d, label, color) {
+  const ctx = document.getElementById(canvasId).getContext('2d');
+
+  const actual    = d.actual;
+  const predicted = d.predicted;
+  const r2        = d.r2;
+
+  const points = actual.map((a, i) => ({ x: a, y: predicted[i] }));
+  const maxVal = Math.max(...actual, ...predicted) * 1.05;
+
+  const existing = canvasId === 'scatter-heat' ? scatterHeat : scatterCool;
+  if (existing) { existing.destroy(); }
+
+  const chart = new Chart(ctx, {
+    type: 'scatter',
+    data: {
+      datasets: [
+        {
+          label: 'Test set buildings',
+          data: points,
+          backgroundColor: color + '55',   // translucent fill
+          borderColor:     color + 'cc',
+          borderWidth: 0.5,
+          pointRadius: 3,
+          pointHoverRadius: 5,
+        },
+        {
+          label: 'Perfect prediction',
+          data: [{ x: 0, y: 0 }, { x: maxVal, y: maxVal }],
+          type: 'line',
+          borderColor: '#64748b',
+          borderDash: [5, 4],
+          borderWidth: 1.5,
+          pointRadius: 0,
+          fill: false,
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        title: {
+          display: true,
+          text: label,
+          font: { size: 13, weight: '700' },
+          color: '#1f2937',
+          padding: { bottom: 2 },
+        },
+        subtitle: {
+          display: true,
+          text: `R² = ${r2.toFixed(4)}`,
+          font: { size: 11 },
+          color: '#6b7280',
+          padding: { bottom: 8 },
+        },
+        legend: {
+          position: 'bottom',
+          labels: { font: { size: 10 }, boxWidth: 10, padding: 10 },
+        },
+        tooltip: {
+          callbacks: {
+            label: ctx => ctx.datasetIndex === 0
+              ? ` Actual: ${fmt(Math.round(ctx.parsed.x))} | Predicted: ${fmt(Math.round(ctx.parsed.y))}`
+              : null,
+          },
+          filter: item => item.datasetIndex === 0,
+        },
+      },
+      scales: {
+        x: {
+          title: { display: true, text: 'Actual (kWh)', font: { size: 10 } },
+          min: 0,
+          max: maxVal,
+          ticks: { callback: v => fmt(v), font: { size: 9 }, maxTicksLimit: 6 },
+          grid: { color: 'rgba(0,0,0,.04)' },
+        },
+        y: {
+          title: { display: true, text: 'Predicted (kWh)', font: { size: 10 } },
+          min: 0,
+          max: maxVal,
+          ticks: { callback: v => fmt(v), font: { size: 9 }, maxTicksLimit: 6 },
+          grid: { color: 'rgba(0,0,0,.04)' },
+        },
+      },
+    },
+  });
+
+  if (canvasId === 'scatter-heat') scatterHeat = chart;
+  else scatterCool = chart;
+}
+
+/* ── Boot ──────────────────────────────────────────────────────────────────── */
+startPolling();

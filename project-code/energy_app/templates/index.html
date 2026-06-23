@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ResStock Energy Planner</title>
+  <link rel="stylesheet" href="/static/css/style.css" />
+</head>
+<body>
+
+  <!-- ── Header ──────────────────────────────────────────────────────── -->
+  <header>
+    <div class="header-inner">
+      <div class="header-title">
+        <svg class="header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M3 9.5L12 3l9 6.5V20a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9.5z"/>
+          <polyline points="9 21 9 12 15 12 15 21"/>
+        </svg>
+        <div>
+          <h1>ResStock Energy Planner</h1>
+          <p>Predict seasonal heating &amp; cooling loads from building characteristics</p>
+        </div>
+      </div>
+      <nav class="page-nav">
+        <a href="/" class="nav-link active-rf">
+          <span class="nav-dot nav-dot-rf"></span> Random Forest
+        </a>
+        <a href="/knn" class="nav-link">
+          <span class="nav-dot nav-dot-knn"></span> K-Nearest Neighbors
+        </a>
+      </nav>
+      <div id="status-badge" class="badge badge-loading">
+        <span class="badge-dot"></span>
+        <span id="status-text">Initializing…</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- ── Loading overlay ─────────────────────────────────────────────── -->
+  <div id="loading-overlay" class="overlay">
+    <div class="overlay-card">
+      <div class="spinner"></div>
+      <h2>Loading ResStock Data</h2>
+      <p id="loading-msg">Connecting to NREL S3 and training models…<br>This takes about 60–90 seconds on first run.</p>
+    </div>
+  </div>
+
+  <!-- ── Error overlay ───────────────────────────────────────────────── -->
+  <div id="error-overlay" class="overlay hidden">
+    <div class="overlay-card error-card">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="error-icon">
+        <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/>
+        <line x1="12" y1="16" x2="12.01" y2="16"/>
+      </svg>
+      <h2>Failed to Load</h2>
+      <pre id="error-msg"></pre>
+      <button onclick="retryLoad()" class="btn btn-primary">Retry</button>
+    </div>
+  </div>
+
+  <!-- ── Main ────────────────────────────────────────────────────────── -->
+  <main>
+    <div class="layout">
+
+      <!-- Left: form -->
+      <section class="panel form-panel">
+        <h2 class="panel-title">Building Characteristics</h2>
+
+        <div class="field-group">
+          <label for="sel-state">State</label>
+          <select id="sel-state">
+            <option value="AL">AL – Alabama</option>
+            <option value="AK">AK – Alaska</option>
+            <option value="AZ">AZ – Arizona</option>
+            <option value="AR">AR – Arkansas</option>
+            <option value="CA">CA – California</option>
+            <option value="CO">CO – Colorado</option>
+            <option value="CT">CT – Connecticut</option>
+            <option value="DE">DE – Delaware</option>
+            <option value="FL">FL – Florida</option>
+            <option value="GA">GA – Georgia</option>
+            <option value="HI">HI – Hawaii</option>
+            <option value="ID">ID – Idaho</option>
+            <option value="IL">IL – Illinois</option>
+            <option value="IN" selected>IN – Indiana</option>
+            <option value="IA">IA – Iowa</option>
+            <option value="KS">KS – Kansas</option>
+            <option value="KY">KY – Kentucky</option>
+            <option value="LA">LA – Louisiana</option>
+            <option value="ME">ME – Maine</option>
+            <option value="MD">MD – Maryland</option>
+            <option value="MA">MA – Massachusetts</option>
+            <option value="MI">MI – Michigan</option>
+            <option value="MN">MN – Minnesota</option>
+            <option value="MS">MS – Mississippi</option>
+            <option value="MO">MO – Missouri</option>
+            <option value="MT">MT – Montana</option>
+            <option value="NE">NE – Nebraska</option>
+            <option value="NV">NV – Nevada</option>
+            <option value="NH">NH – New Hampshire</option>
+            <option value="NJ">NJ – New Jersey</option>
+            <option value="NM">NM – New Mexico</option>
+            <option value="NY">NY – New York</option>
+            <option value="NC">NC – North Carolina</option>
+            <option value="ND">ND – North Dakota</option>
+            <option value="OH">OH – Ohio</option>
+            <option value="OK">OK – Oklahoma</option>
+            <option value="OR">OR – Oregon</option>
+            <option value="PA">PA – Pennsylvania</option>
+            <option value="RI">RI – Rhode Island</option>
+            <option value="SC">SC – South Carolina</option>
+            <option value="SD">SD – South Dakota</option>
+            <option value="TN">TN – Tennessee</option>
+            <option value="TX">TX – Texas</option>
+            <option value="UT">UT – Utah</option>
+            <option value="VT">VT – Vermont</option>
+            <option value="VA">VA – Virginia</option>
+            <option value="WA">WA – Washington</option>
+            <option value="WV">WV – West Virginia</option>
+            <option value="WI">WI – Wisconsin</option>
+            <option value="WY">WY – Wyoming</option>
+          </select>
+          <p class="field-note">Changing state reloads data (~60–90 s)</p>
+        </div>
+
+        <div class="field-group">
+          <label for="sel-fuel">Heating Fuel</label>
+          <select id="sel-fuel"><option>Loading…</option></select>
+        </div>
+
+        <div class="field-group">
+          <label for="sel-foundation">Foundation Type</label>
+          <select id="sel-foundation"><option>Loading…</option></select>
+        </div>
+
+        <div class="field-group">
+          <label for="sl-area">
+            Floor Area
+            <span class="label-value"><span id="area-val">1500</span> sqft</span>
+          </label>
+          <input type="range" id="sl-area" min="500" max="4000" step="250" value="1500"
+                 oninput="document.getElementById('area-val').textContent = this.value" />
+          <div class="range-labels"><span>500</span><span>4 000</span></div>
+        </div>
+
+        <div class="field-group">
+          <label for="sl-setpoint">
+            Heating Setpoint
+            <span class="label-value"><span id="setp-val">70</span> °F</span>
+          </label>
+          <input type="range" id="sl-setpoint" min="60" max="80" step="1" value="70"
+                 oninput="document.getElementById('setp-val').textContent = this.value" />
+          <div class="range-labels"><span>60 °F</span><span>80 °F</span></div>
+        </div>
+
+        <div class="field-group">
+          <label>Number of Stories</label>
+          <div class="radio-group" id="rg-stories">
+            <label class="radio-option">
+              <input type="radio" name="stories" value="1" checked /> 1
+            </label>
+            <label class="radio-option">
+              <input type="radio" name="stories" value="2" /> 2
+            </label>
+            <label class="radio-option">
+              <input type="radio" name="stories" value="3" /> 3+
+            </label>
+          </div>
+        </div>
+
+        <button id="btn-predict" class="btn btn-primary btn-full" onclick="runPrediction()">
+          Run Prediction
+        </button>
+      </section>
+
+      <!-- Right: results -->
+      <section class="panel results-panel">
+        <h2 class="panel-title">Predicted Energy Use</h2>
+
+        <div id="results-placeholder" class="placeholder">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
+          </svg>
+          <p>Fill in the form and click <strong>Run Prediction</strong></p>
+        </div>
+
+        <div id="results-content" class="hidden">
+
+          <div class="stat-grid">
+            <div class="stat-card stat-heat">
+              <div class="stat-label">Heating Load</div>
+              <div class="stat-value"><span id="res-heat">—</span></div>
+              <div class="stat-unit">kWh / year</div>
+            </div>
+            <div class="stat-card stat-cool">
+              <div class="stat-label">Cooling Load</div>
+              <div class="stat-value"><span id="res-cool">—</span></div>
+              <div class="stat-unit">kWh / year</div>
+            </div>
+            <div class="stat-card stat-total">
+              <div class="stat-label">Combined</div>
+              <div class="stat-value"><span id="res-total">—</span></div>
+              <div class="stat-unit">kWh / year</div>
+            </div>
+            <div class="stat-card stat-cost">
+              <div class="stat-label">Est. Cost</div>
+              <div class="stat-value">$<span id="res-cost">—</span></div>
+              <div class="stat-unit">@ $0.15 / kWh</div>
+            </div>
+          </div>
+
+          <div class="chart-wrap">
+            <canvas id="bar-chart"></canvas>
+          </div>
+
+          <p class="chart-caption">
+            Compared to <strong id="avg-state">—</strong> state average (simulated ResStock baseline dwellings)
+          </p>
+
+          <div class="compare-section">
+            <p class="compare-title">Predicted vs. Actual — RF Test Set</p>
+            <div class="scatter-grid">
+              <div class="scatter-wrap"><canvas id="scatter-heat"></canvas></div>
+              <div class="scatter-wrap"><canvas id="scatter-cool"></canvas></div>
+            </div>
+            <p class="chart-caption" style="margin-top:.5rem;">
+              Each point is one simulated dwelling from the held-out 25% test set.
+              The dashed line shows perfect prediction.
+            </p>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </main>
+
+  <footer>
+    <p>
+      Data: <a href="https://oedi-data-lake.s3.amazonaws.com/nrel-pds-building-stock/" target="_blank">NREL ResStock / OEDI</a>
+      &nbsp;·&nbsp; Model: Random Forest trained on NREL simulated building stock
+    </p>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="/static/js/app.js"></script>
+</body>
+</html>
